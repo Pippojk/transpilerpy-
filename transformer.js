@@ -181,7 +181,15 @@ function parser(tokens) {
 
     if (tok.type == "IDENTIFIER") {
       next();
-      return { type: "name", value: tok.value };
+      let node = { type: "name", value: tok.value };
+      if(peek().type == "LSQUARE"){
+        next();
+        let index =parseEspressione();
+        if(next().type != "RSQUARE")  throw new Error("quadra chiusa mancante nella lettura dell'array");
+        node = {type: "index", object: node, index};
+      }
+
+      return node;
     }
 
     if (tok.type == "STRING") {
@@ -193,10 +201,10 @@ function parser(tokens) {
       next();
       let args = []
 
-      args.push(next());
+      args.push(parseEspressione());
       while(peek() && peek().type == "COMA"){
         next();
-        args.push(parseEspressione(next()));
+        args.push(parseEspressione());
       }
 
       if(next().type != "RSQUARE") throw new Error("lista non chiusa")
@@ -591,8 +599,9 @@ function jsComposer(node) {
       return '"' + node.value + '"';
 
     case "list":
-      return "["+node.args.join(",")+"]";
-
+      return "[" + node.args.map(jsComposer).join(", ") + "]";
+    case "index":
+      return `${jsComposer(node.object)}[${jsComposer(node.index)}]`;
     case "print": {
       // converte ogni argomento in stringa
       const args = node.value
