@@ -74,7 +74,7 @@ function tokenize(code) {
       }
 
       //controllo istruzione o nome
-      if (['if', 'elif', 'else', 'while', 'for', 'print', 'input', 'range', 'break', 'continue'].includes(id)) {
+      if (['if', 'elif', 'else', 'while', 'for', 'print', 'input', 'range', 'break', 'continue', 'len'].includes(id)) {
         tokens.push({ type: "KEYWORD", value: id });
       } else {
         tokens.push({ type: "IDENTIFIER", value: id });
@@ -234,6 +234,13 @@ function parser(tokens) {
     }else if(tok.type == "KEYWORD" && tok.value == "continue"){
       next();
       return {type: "continue"};
+    }else if(tok.type == "KEYWORD" && tok.value == "len"){
+      next();
+      if(next().type != "LPAREN") throw new Error("( mancante in len");
+      let arg = parseEspressione();
+      if(next().type != "RPAREN") throw new Error(") mancante in len");
+
+      return {type: "len", arg};
     }
 
     throw new Error(tok.type +  " espressione non valida " + tok.value);
@@ -340,8 +347,6 @@ function parser(tokens) {
           if (peek() && next().type != "COLON") throw new Error(": mancante nell'else");
 
           skipNewLine();
-          //const Eindent = readIndent();
-          //if (Eindent !== indentStack[indentStack.length - 1]) throw new Error("else con indentazione errata");
 
           const bodyIndent = readIndent();
 
@@ -497,6 +502,13 @@ function parser(tokens) {
     if (tok.type == "IDENTIFIER") {
       if (CreatedVariable.has(tok.value)) {
         next();
+        let index;
+        if(peek().type == "LSQUARE"){
+          next();
+          index = parseEspressione();
+          if(next().type !== "RSQUARE") throw new Error("[ mancante");
+        }
+
         let op = "";
         const eq = next();
 
@@ -516,8 +528,9 @@ function parser(tokens) {
 
         return {
           type: "change",
-          target: { type: "name", value: tok.value },
+          target: { type: "name",  value: tok.value },
           op,
+          index,
           value: argument
         };
       } else {
@@ -587,7 +600,11 @@ function jsComposer(node) {
       return `let ${jsComposer(node.target)} = ${jsComposer(node.value)};`;
 
     case "change":
-      return `${jsComposer(node.target)} ${node.op} ${jsComposer(node.value)};`;
+      if(node.index == null){
+        return `${jsComposer(node.target)} ${node.op} ${jsComposer(node.value)};`;
+      }else{
+        return `${jsComposer(node.target)}[${jsComposer(node.index)}] ${node.op} ${jsComposer(node.value)};`;
+      }
 
     case "name":
       return node.value;
@@ -655,6 +672,8 @@ function jsComposer(node) {
       return node.type + ";";
     case "continue":
       return node.type + ";";
+    case "len":
+      return `${jsComposer(node.arg)}.length`;
   }
 }
 
