@@ -74,7 +74,7 @@ function tokenize(code) {
       }
 
       //controllo istruzione o nome
-      if (['if', 'elif', 'else', 'while', 'for', 'print', 'input', 'range', 'break', 'continue', 'len'].includes(id)) {
+      if (['if', 'elif', 'else', 'while', 'for', 'print', 'input', 'range', 'break', 'continue', 'len', 'def', 'return'].includes(id)) {
         tokens.push({ type: "KEYWORD", value: id });
       } else {
         tokens.push({ type: "IDENTIFIER", value: id });
@@ -112,7 +112,8 @@ function tokenize(code) {
       '[': 'LSQUARE',
       ']': 'RSQUARE',
       ':': 'COLON',
-      ',': 'COMA'
+      ',': 'COMA',
+      '.': 'DOT'
     };
 
     if (singleCharTokens[char]) {
@@ -156,7 +157,7 @@ function parser(tokens) {
   }
 
   //parse per un espressione
-  function parseEspressione() {
+  function parseEspressione(){
     let left = parseAtom();
     while (
       peek() &&
@@ -171,7 +172,7 @@ function parser(tokens) {
   }
 
   //capisci se lespressione e un valore o una variabile
-  function parseAtom() {
+  function parseAtom(creazioneFunzione = false) {
     const tok = peek();
 
     if (tok.type == "NUMBER") {
@@ -181,15 +182,31 @@ function parser(tokens) {
 
     if (tok.type == "IDENTIFIER") {
       next();
-      let node = { type: "name", value: tok.value };
+      //controllo se si sta chiamando lelemento di una lista
       if(peek().type == "LSQUARE"){
         next();
         let index =parseEspressione();
         if(next().type != "RSQUARE")  throw new Error("quadra chiusa mancante nella lettura dell'array");
-        node = {type: "index", object: node, index};
-      }
+        return {type: "index", object: tok.value, index};
+      //controllo se si sta chiamando una funzione
+      }else if(peek().type == "LPAREN" && creazioneFunzione == false){
+        next();
+        let args = [];
 
-      return node;
+        if(peek().type !== "RPAREN"){
+          args.push(parseEspressione());
+          while (peek().type === "COMA") {
+            next();
+            args.push(parseEspressione());
+          }
+        }
+
+        if(next().type !== "RPAREN") throw new Error(") mancante nella chiamata della funzione");
+
+        return {type: "call", callee: tok.value, args};
+      }
+      //se non si sta richiamando ne una funzione ne un elemento di lista
+      return { type: "name", value: tok.value };
     }
 
     if (tok.type == "STRING") {
@@ -197,6 +214,7 @@ function parser(tokens) {
       return { type: "string", value: tok.value };
     }
 
+    //creazione di una nuova lista
     if(tok.type == "LSQUARE"){
       next();
       let args = []
@@ -241,6 +259,10 @@ function parser(tokens) {
       if(next().type != "RPAREN") throw new Error(") mancante in len");
 
       return {type: "len", arg};
+    }else if(tok.type == "KEYWORD" && tok.value == "return"){
+      next();
+      const arg = parseEspressione();
+      return {type: "return", arg};
     }
 
     throw new Error(tok.type +  " espressione non valida " + tok.value);
@@ -495,12 +517,73 @@ function parser(tokens) {
           condition: { type: "binary", op, left, right },
           body
         };
+      }else if(tok.value == "def"){
+        next();
+        const nome = parseAtom(true);
+
+        let lp = next();
+        if(lp.type !== "LPAREN") throw new Error("( mancante nella creazione della funzione " + lp.type);
+        
+        //controllo numeri di parametri
+        let par = [];
+        if(peek().type !== "RPAREN"){
+          par.push(parseEspressione());
+          while(true){
+            if(peek().type != "COMA"){ 
+              break;
+            }else{
+              next();
+            }
+
+            par.push(parseEspressione());
+          }
+        }
+
+        if(next().type !== "RPAREN") throw new Error(") mancante nella creazione della funzione ");
+
+        if(next().type !== "COLON") throw new Error(": mancante nella creazione della funzione");
+        
+        skipNewLine();
+        const indent = readIndent();
+        if(indent == null) throw new Error("funzione vuota");
+        const currentIndent = indentStack[indentStack.length-1];
+
+        if(indent <= currentIndent) throw new Error("intentazione sbagliata dopo la funzione");
+        indentStack.push(indent);
+        
+        let body = [];
+        while (true) {
+          skipNewLine();
+          const tok = peek();
+          if (!tok) break;
+          if (tok.type === "INDENTENTION" && tok.value < indentStack[indentStack.length - 1]){
+            break;
+          }else if(tok.type === "INDENTENTION" && tok.value == indentStack[indentStack.length - 1]){
+            next();
+          }
+          const val = parseStatement();
+         
+          body.push(val);
+        }
+
+        indentStack.pop();
+
+        return{
+          type: "function",
+          nome,
+          par,
+          body
+        }
       }
     }
 
     // ---- val+=10 (variabile esistente)
     if (tok.type == "IDENTIFIER") {
-      if (CreatedVariable.has(tok.value)) {
+      const nextTok = tokens[pos+1];
+      if(nextTok.type == "LPAREN") {
+        // è una chiamata di funzione
+        return parseAtom(); // parseAtom gestisce le call
+      } else if (CreatedVariable.has(tok.value)) {
         next();
         let index;
         if(peek().type == "LSQUARE"){
@@ -618,7 +701,7 @@ function jsComposer(node) {
     case "list":
       return "[" + node.args.map(jsComposer).join(", ") + "]";
     case "index":
-      return `${jsComposer(node.object)}[${jsComposer(node.index)}]`;
+      return `${node.object}[${jsComposer(node.index)}]`;
     case "print": {
       // converte ogni argomento in stringa
       const args = node.value
@@ -632,8 +715,6 @@ function jsComposer(node) {
       // altrimenti usa end personalizzato
       return `process.stdout.write(${args} + String(${jsComposer(node.argEnd)}));`;
     }
-
-
     case "binary":
       return `${jsComposer(node.left)} ${opToJs(node.op)} ${jsComposer(node.right)}`;
 
@@ -674,6 +755,18 @@ function jsComposer(node) {
       return node.type + ";";
     case "len":
       return `${jsComposer(node.arg)}.length`;
+
+    case "function":
+      let code = `function ${jsComposer(node.nome)}(`;
+      code += node.par.map(jsComposer).join(", ");
+      code += `){\n`;
+      code += node.body.map(jsComposer).join("\n");
+      code += `\n}`;
+      return code;
+    case "call":
+      return `${node.callee}(${node.args.map(jsComposer).join(", ")})`;
+    case "return":
+      return node.type+" "+ jsComposer(node.arg);
   }
 }
 
@@ -691,8 +784,9 @@ fs.readFile('fakepy.txt', 'utf8', (err, data) => {
   //console.log(parse);
 
   let result = jsComposer(parse);
-  //console.log(result);
+  console.log(result);
 
+  console.log();
   eval(`(async () => { ${result} })()`);
 });
 

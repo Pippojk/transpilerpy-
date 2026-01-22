@@ -1,8 +1,9 @@
-a = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+def  fib(num):
+  if(num < 2):
+    return num
+  c = fib(num-1) + fib(num-2)
+  return c
 
-l = len(a)
-
-for i in range(l):
-  a[i] = i+1
-
-print(a)
+n = input()
+l = fib(n)
+print(l)
