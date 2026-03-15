@@ -19,7 +19,8 @@ import {
   Call,
   Return,
   Continue,
-  Input
+  Input,
+  Method
 } from "./ast.js"
 
 export function parser(tokens) {
@@ -77,7 +78,7 @@ export function parser(tokens) {
     if (tok.type == "IDENTIFIER") {
       next();
       //controllo se si sta chiamando lelemento di una lista
-      if(peek().type == "LSQUARE"){
+      if(peek() && peek().type == "LSQUARE"){
         next();
         let index =parseEspressione();
         if(next().type != "RSQUARE")  throw new Error("quadra chiusa mancante nella lettura dell'array");
@@ -86,7 +87,7 @@ export function parser(tokens) {
           index
         );
       //controllo se si sta chiamando una funzione
-      }else if(peek().type == "LPAREN" && creazioneFunzione == false){
+      }else if(peek && peek().type == "LPAREN" && creazioneFunzione == false){
         next();
         let args = [];
 
@@ -101,6 +102,28 @@ export function parser(tokens) {
         if(next().type !== "RPAREN") throw new Error(") mancante nella chiamata della funzione");
 
         return new Call(new Name(tok.value), args);
+      //controllo se si sta chiamando un metodo di una lista  
+      }else if(peek() && peek().type == "DOT"){
+        next();
+        const name = next();
+        if(next().type != "LPAREN") throw new Error("( mancante nel metodo della lista");
+
+        if(peek().type != "RPAREN"){
+          let args = [];
+          args.push(parseEspressione());
+          while(peek().type == "COMA"){
+            next();
+            args.push(parseEspressione());
+          }
+
+          next();//consumiamo )
+
+          return new Method(new Name(tok.value), new Name(name.value), args);
+        }else{
+          next();//consumiamo )
+          return new Method(new Name(tok.value), new Name(name.value), []);
+        }
+
       }
       //se non si sta richiamando ne una funzione ne un elemento di lista
       return new Name(tok.value);
@@ -116,12 +139,13 @@ export function parser(tokens) {
       next();
       let args = []
 
+      if(peek() && peek().type !== "RSQUARE"){
       args.push(parseEspressione());
       while(peek() && peek().type == "COMA"){
         next();
         args.push(parseEspressione());
       }
-
+      }
       if(next().type != "RSQUARE") throw new Error("lista non chiusa")
 
       return new List(args);
@@ -162,7 +186,7 @@ export function parser(tokens) {
       return new Return(arg);
     }
 
-    throw new Error(tok.type +  " espressione non valida " + tok.value);
+    throw new Error(tok.type +  " espressione non valida " + tokens[pos-3].value + " " + pos);
   }
 
   //funzione per fare il parsing effettivo dei token
@@ -256,7 +280,12 @@ export function parser(tokens) {
 
         //inizio parsing else se esiste
         skipNewLine();
-        readIndent();
+        if (peek() && peek().type === "INDENTENTION") {
+          readIndent(); // consumo temporaneo
+          if (!(peek() && peek().type === "KEYWORD" && peek().value == "else")) {
+            pos--; // nessun else → rimetto il token INDENTENTION
+          }
+        }
         let elsebody = null;
 
         if (peek() && peek().type === "KEYWORD" && peek().value == "else") {
@@ -445,6 +474,16 @@ export function parser(tokens) {
         if(indent <= currentIndent) throw new Error("intentazione sbagliata dopo la funzione");
         indentStack.push(indent);
         
+        const screenShot = new Set(CreatedVariable);
+
+        // Aggiungi i parametri al set di variabili create
+        for (const p of par) {
+          if (p instanceof Name) {
+            CreatedVariable.add(p.value);
+          }
+        }
+
+
         let body = [];
         while (true) {
           skipNewLine();
@@ -462,6 +501,10 @@ export function parser(tokens) {
 
         indentStack.pop();
 
+        for(const v of [...CreatedVariable]){
+          if(!(screenShot.has(v))) CreatedVariable.delete(v);
+        }
+
         return new Function(
           nome,
           par,
@@ -473,8 +516,10 @@ export function parser(tokens) {
     // ---- val+=10 (variabile esistente)
     if (tok.type == "IDENTIFIER") {
       const nextTok = tokens[pos+1];
-      if(nextTok.type == "LPAREN") {
-        // è una chiamata di funzione
+
+      if(nextTok.type == "DOT"){
+        return new Exp(parseAtom());
+      }else if(nextTok.type == "LPAREN") {
         return parseAtom(); // parseAtom gestisce le call
       } else if (CreatedVariable.has(tok.value)) {
         next();
@@ -482,7 +527,7 @@ export function parser(tokens) {
         if(peek().type == "LSQUARE"){
           next();
           index = parseEspressione();
-          if(next().type !== "RSQUARE") throw new Error("[ mancante");
+          if(next().type !== "RSQUARE") throw new Error("] mancante");
         }
 
         let op = "";
@@ -512,7 +557,7 @@ export function parser(tokens) {
         // ---- val = expr ---- (nuova variabile)
         const nameToken = next();
         const eq = next();
-        if (eq.type != "EQUALS") throw new Error("= mancante nella creazione della variabile");
+        if (eq.type != "EQUALS") throw new Error(nameToken.value + " = mancante nella creazione della variabile");
 
         const argument = parseEspressione();
         CreatedVariable.add(nameToken.value);
@@ -548,7 +593,6 @@ export function parser(tokens) {
 
     const stmt = parseStatement();
     if (stmt) body.push(stmt);
-    skipNewLine();
   }
 
   return new Program(body);

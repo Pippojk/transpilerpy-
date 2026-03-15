@@ -1,6 +1,7 @@
+//funzione procedurale che usa bottomUp per dividere in token leggibili nel parser una stringa di codice (codice spaghetti)
 export function tokenize(code) {
   const tokens = [];
-  let i = 0;
+  let i = 0; //posizione del carattere 
   let isSpazi = false;
   let spazi = 0;
 
@@ -11,6 +12,7 @@ export function tokenize(code) {
     if (char === '\n') {
       tokens.push({ type: 'NEWLINE' });
       isSpazi = true;
+      spazi = 0;
       i++;
       continue;
     }
@@ -54,7 +56,13 @@ export function tokenize(code) {
       }
 
       //controllo istruzione o nome
-      if (['if', 'elif', 'else', 'while', 'for', 'print', 'input', 'range', 'break', 'continue', 'len', 'def', 'return'].includes(id)) {
+      const KEYWORDS = new Set([
+        'if', 'elif', 'else', 'while', 'for',
+        'print', 'input', 'range', 'break', 
+        'continue', 'len', 'def', 'return'
+      ]);
+
+      if (KEYWORDS.has(id)) {
         tokens.push({ type: "KEYWORD", value: id });
       } else {
         tokens.push({ type: "IDENTIFIER", value: id });
@@ -102,7 +110,7 @@ export function tokenize(code) {
       continue;
     }
 
-    throw new Error("carattere non riconosciuto: " + char);
+    throw new Error("LEXER: carattere non riconosciuto: " + char + " in posizione: " + i);
   }
 
   return tokens;

@@ -159,3 +159,12 @@ export class Input{
         this.arg = arg;
     }
 }
+
+export class Method{
+    constructor(name, value, args){
+        this.type = "method";
+        this.name = name;
+        this.value = value;
+        this.args = args;
+    }
+}

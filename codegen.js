@@ -19,26 +19,43 @@ import {
   Call,
   Return,
   Continue,
-  Input
+  Input,
+  Method
 } from "./ast.js"
 
 export function jsComposer(node) {
-function opToJs(op) {
-  return {
-    PLUS: "+",
-    MINUS: "-",
-    STAR: "*",
-    SLASH: "/",
-    PERCENT: "%",
+  function opToJs(op) {
+    return {
+      PLUS: "+",
+      MINUS: "-",
+      STAR: "*",
+      SLASH: "/",
+      PERCENT: "%",
 
-    "==": "==",
-    "!=": "!=",
-    "<": "<",
-    "<=": "<=",
-    ">": ">",
-    ">=": ">="
-  }[op] || op;
-}
+      "==": "==",
+      "!=": "!=",
+      "<": "<",
+      "<=": "<=",
+      ">": ">",
+      ">=": ">="
+    }[op] || op;
+  }
+
+  function methToJs(meth){
+    return {
+    "append":  "push(",
+    "extend":  "push(...",   //in JS si fa arr.push(...other)
+    "insert":  "splice(",      // arr.splice(index, 0, value)
+    "remove":  "splice(",      // arr.splice(arr.indexOf(value), 1)
+    "reverse": "reverse(",     // uguale in JS
+    "count":   "filter(",      // arr.filter(x => x === val).length
+    "sort":    "sort(",        // uguale in JS
+    "pop":     "pop(",         // uguale in JS
+    //"clear":   "splice",      // arr.splice(0, arr.length)
+    "index":   "indexOf(",     // primo indice del valore
+    "copy":    "slice(", 
+    }[meth] || meth;
+  }
 
   if(node instanceof Program){
       return node.body.map(jsComposer).join("\n");
@@ -132,7 +149,7 @@ function opToJs(op) {
   }
   else if(node instanceof Function)
   {
-    let code = `function ${jsComposer(node.name)}(`;
+    let code = `async function ${jsComposer(node.name)}(`;
     code += node.par.map(jsComposer).join(", ");
     code += `){\n`;
     code += node.body.map(jsComposer).join("\n");
@@ -140,10 +157,15 @@ function opToJs(op) {
     return code;
   }
   else if(node instanceof Call){
-    return `${jsComposer(node.callee)}(${node.args.map(jsComposer).join(", ")})`;
+    return `await ${jsComposer(node.callee)}(${node.args.map(jsComposer).join(", ")})`;
   }
   else if(node instanceof Return)
   {
     return `return ${jsComposer(node.arg)};`;
+  }else if(node instanceof Method){
+    let code = `${jsComposer(node.name)}.${methToJs(jsComposer(node.value))}`;
+    code += node.args.map(jsComposer).join(", ");
+    code += `);`;
+    return code
   }
 }

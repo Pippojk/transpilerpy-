@@ -21,6 +21,14 @@ function input(prompt = "") {
   });
 }
 
+console.log("==========================\n");
+console.log("BENVENUTO NEL TRANSPILER DI FILIPPO CHIAROLLA");
+console.log("    vuoi testare il file txt o i test??");
+console.log("          1)txt           2)test");
+const scelta = await input();
+console.log("==========================\n");
+
+if(scelta == 1){
 // Legge il file sorgente del tuo "fakepy"
 fs.readFile('fakepy.txt', 'utf8', (err, data) => {
   if (err) {
@@ -54,8 +62,8 @@ fs.readFile('fakepy.txt', 'utf8', (err, data) => {
     rl.close();
   }
 });
+}else{
 
-/*
 async function test(){
 for (let i = 0; i < testList.length; i++) {
   const tokens = tokenize(testList[i]);
@@ -71,7 +79,7 @@ for (let i = 0; i < testList.length; i++) {
 
   process.stdout.write = originalWrite;
 
-  if (output .trim!== expected[i].trim) {
+  if (output.trim()!== expected[i].trim()) {
     console.log(`❌ Test ${i+1} fallito`);
     console.log("Atteso:\n", expected[i]);
     console.log("Ottenuto:\n", output);
@@ -84,4 +92,4 @@ for (let i = 0; i < testList.length; i++) {
 test().then(() => {
   rl.close();
 });
-*/
+}

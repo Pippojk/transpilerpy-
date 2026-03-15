@@ -1,10 +1,16 @@
-def fib(n):
-    if(n==0):
-        return 0
-    if(n==1):
-        return 1
+def fullfill(n):
+    a = []
+    for i in range(n):
+        a.append(i)
 
-    return fib(n-1) + fib(n-2)
+    return a
 
-n = input("inserisci la posizione nella sequenza di fibonacci: ")
-print(fib(n))
+def printList(a):
+    for i in range(len(a)):
+        print(a[i], end=' ')
+    print("")
+
+num = input("inserisci un numero: ")
+lis = fullfill(num)
+
+printList(lis)

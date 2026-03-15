@@ -1,235 +1,166 @@
 export const testList = [
-
-`print("TEST 1")
-
-a = 10
-b = 5
-c = a + b
-d = a - b
-e = a * b
-f = a / b
-g = a % b
-
-print(c)
-print(d)
-print(e)
-print(f)
-print(g)
-`,
-
-`print("TEST 2")
-
-a = 10
-a += 5
-print(a)
-
-a -= 3
-print(a)
-
-a *= 2
-print(a)
-
-a /= 4
-print(a)
-`,
-
-`print("TEST 3")
-
-a = 50
-
-if(a < 100):
-  print("minore di 100")
-else:
-  print("maggiore o uguale a 100")
-
-if(a >= 50):
-  print("maggiore o uguale 50")
-`,
-
-`print("TEST 4")
-
-i = 0
-
-while(i < 5):
-  print(i)
-  i += 1
-`,
-
-`print("TEST 5")
-
-for i in range(5):
-  print(i)
-`,
-
-`print("TEST 6")
-
-for i in range(2, 6):
-  print(i)
-`,
-
-`print("TEST 7")
-
-a = [10, 20, 30]
-print(a[0])
-print(a[1])
-print(a[2])
-
-a[1] += 5
-print(a[1])
-`,
-
-`print("TEST 8")
-
-a = [1,2,3,4,5]
-print(len(a))
-`,
-
-`print("TEST 9")
-
-i = 0
-
-while(i < 10):
-  i += 1
-
-  if(i == 3):
-    continue
-
-  if(i == 7):
-    break
-
-  print(i)
-`,
-
-`print("TEST 10")
-
+`print("TEST F1")
 def saluta():
-  print("ciao")
-
+  print("Ciao funzione!")
 saluta()
 `,
-
-`print("TEST 11")
-
+`print("TEST F2")
 def somma(a, b):
   return a + b
-
-x = somma(5, 7)
+x = somma(3, 7)
 print(x)
 `,
-
-`print("TEST 12")
-
-def conta(n):
-  i = 0
-  while(i < n):
-    print(i)
-    i += 1
-
-conta(3)
-`,
-
-`print("TEST FINALE")
-
+`print("TEST F3")
 def moltiplica(a, b):
   return a * b
-
-numeri = [1,2,3,4,5]
-
-for i in range(len(numeri)):
-  risultato = moltiplica(numeri[i], 2)
-
-  if(risultato >= 6):
-    print("grande:", risultato)
+def quadrato(n):
+  return moltiplica(n, n)
+print(quadrato(5))
+`,
+`print("TEST F4")
+def creaLista(n):
+  lst = [0, 0, 0, 0]
+  for i in range(n):
+    lst[i] = i
+  return lst
+l = creaLista(4)
+print(len(l))
+print(l[0])
+print(l[3])
+`,
+`print("TEST F5")
+def contaPari(n):
+  count = 0
+  for i in range(n):
+    if(i % 2 == 0):
+      count += 1
+  return count
+print(contaPari(10))
+`,
+`print("TEST F6")
+def reverseList(l):
+  i = 0
+  j = len(l) - 1
+  while(i < j):
+    temp = l[i]
+    l[i] = l[j]
+    l[j] = temp
+    i += 1
+    j -= 1
+  return l
+lst = [1,2,3,4,5]
+print(reverseList(lst))
+`,
+`print("TEST F7")
+def fib(n):
+  a = 0
+  b = 1
+  i = 0
+  while(i < n):
+    temp = a
+    a = b
+    b = temp + b
+    i += 1
+  return a
+print(fib(5))
+`,
+`print("TEST F8")
+def sommaLista(l):
+  s = 0
+  for i in range(len(l)):
+    s += l[i]
+  return s
+lst = [1,2,3,4]
+print(sommaLista(lst))
+`,
+`print("TEST F9")
+def doppio(n):
+  return n * 2
+def triplo(n):
+  return n * 3
+print(doppio(3))
+print(triplo(3))
+`,
+`print("TEST F10")
+def faiCose(x):
+  if(x > 5):
+    return "grande"
   else:
-    print("piccolo:", risultato)
-`
-
+    return "piccolo"
+print(faiCose(3))
+print(faiCose(7))
+`,
+`a = [1, 2, 3]
+a.append(4)
+print(a)
+`,
+`a = [1, 2, 3]
+a.pop()
+print(a)
+`,
+`a = [1, 2, 3]
+a.reverse()
+print(a)
+`,
+`a = [3, 1, 2]
+a.sort()
+print(a)
+`,
+`a = [10, 20, 30]
+i = a.index(20)
+print(i)
+`,
+`a = [1, 2, 3]
+b = a.copy()
+print(b)
+`,
 ];
 
 export const expected = [
-
-`TEST 1
-15
-5
-50
-2
-0
+`TEST F1
+Ciao funzione!
 `,
-
-`TEST 2
-15
-12
-24
-6
-`,
-
-`TEST 3
-minore di 100
-maggiore o uguale 50
-`,
-
-`TEST 4
-0
-1
-2
-3
-4
-`,
-
-`TEST 5
-0
-1
-2
-3
-4
-`,
-
-`TEST 6
-2
-3
-4
-5
-`,
-
-`TEST 7
+`TEST F2
 10
-20
-30
+`,
+`TEST F3
 25
 `,
-
-`TEST 8
-5
-`,
-
-`TEST 9
-1
-2
+`TEST F4
 4
-5
-6
-`,
-
-`TEST 10
-ciao
-`,
-
-`TEST 11
-12
-`,
-
-`TEST 12
 0
-1
-2
+3
 `,
-
-`TEST FINALE
-piccolo: 2
-piccolo: 4
-grande: 6
-grande: 8
-grande: 10
-`
-
+`TEST F5
+5
+`,
+`TEST F6
+5,4,3,2,1
+`,
+`TEST F7
+5
+`,
+`TEST F8
+10
+`,
+`TEST F9
+6
+9
+`,
+`TEST F10
+piccolo
+grande
+`,
+`1,2,3,4
+`,
+`1,2
+`,
+`3,2,1
+`,
+`1,2,3
+`,
+`1
+`,
+`1,2,3
+`,
 ];
