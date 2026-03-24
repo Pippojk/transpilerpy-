@@ -36,6 +36,12 @@ export function tokenize(code) {
       continue;
     }
 
+    //controllo commenti
+    if (char === '#') {
+  while (i < code.length && code[i] !== '\n') i++;
+  continue;
+}
+
     //controllo dei numeri
     if (/[0-9]/.test(char)) {
       let num = '';
@@ -59,7 +65,8 @@ export function tokenize(code) {
       const KEYWORDS = new Set([
         'if', 'elif', 'else', 'while', 'for',
         'print', 'input', 'range', 'break', 
-        'continue', 'len', 'def', 'return'
+        'continue', 'len', 'def', 'return',
+        'int', 'str', 'float', 'and', 'or'
       ]);
 
       if (KEYWORDS.has(id)) {

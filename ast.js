@@ -60,12 +60,12 @@ export class Print{
     }
 }
 
-export class Binary{
+export class Binary{//a == 1
     constructor(op, left, right){
         this.type = "binary";
-        this.left = left;
-        this.op = op;
-        this.right = right;
+        this.left = left;  // a
+        this.op = op; // ==
+        this.right = right; // 1
     }
 }
 

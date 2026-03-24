@@ -51,6 +51,51 @@ export function parser(tokens) {
     return null;
   }
 
+  function parseCondizione(){
+    if(peek() && peek().type === "LPAREN"){
+      next(); // consuma (
+      const inner = parseLogica();
+      if(next().type !== "RPAREN") throw new Error(") mancante nella condizione");
+      return inner;
+    }
+
+    let left = parseEspressione();
+
+    const tipiComparatori = ["EQUALS", "NOT", "MINOR", "MORE"];
+    if(!tipiComparatori.includes(peek().type)) return left; 
+
+    let eq = next();
+    let op = null;
+
+    if (peek().type == "EQUALS") {
+      if (eq.type === "EQUALS") op = "==";
+      else if (eq.type === "NOT") op = "!=";
+      else if (eq.type === "MINOR") op = "<=";
+      else if (eq.type === "MORE") op = ">=";
+      else throw new Error("operatore mancante nell'if");
+      next();
+    } else {
+      if (eq.type == "MINOR") op = "<";
+      else if (eq.type == "MORE") op = ">";
+      else throw new Error("operatore mancante nell'if");
+    }
+
+    let right = parseEspressione();   
+      
+    return new Binary(op, left, right);
+  }
+
+  function parseLogica(){
+    let left = parseCondizione();
+    while(peek() && ["or", "and"].includes(peek().value)){
+      const op = next();
+      const right = parseCondizione();
+      left = new Binary(op.value, left, right);
+    }
+
+    return left;
+  }
+
   //parse per un espressione
   function parseEspressione(){
     let left = parseAtom();
@@ -70,6 +115,13 @@ export function parser(tokens) {
   function parseAtom(creazioneFunzione = false) {
     const tok = peek();
 
+    if(tok && tok.type === "LPAREN"){
+      next(); // consuma (
+      const inner = parseEspressione();
+      if(next().type !== "RPAREN") throw new Error(") mancante nella condizione");
+      return inner;
+    }
+
     if (tok.type == "NUMBER") {
       next();
       return new Number(tok.value);
@@ -87,7 +139,7 @@ export function parser(tokens) {
           index
         );
       //controllo se si sta chiamando una funzione
-      }else if(peek && peek().type == "LPAREN" && creazioneFunzione == false){
+      }else if(peek() && peek().type == "LPAREN" && creazioneFunzione == false){
         next();
         let args = [];
 
@@ -184,7 +236,26 @@ export function parser(tokens) {
       next();
       const arg = parseEspressione();
       return new Return(arg);
+    }else if(tok.type == "KEYWORD" && tok.value == "int"){
+      next();
+      if(next().type !== "LPAREN") throw new Error("( mancante nell'int()");
+      const arg = parseEspressione();
+      if(next().type !== "RPAREN") throw new Error(") mancante nell'int()");
+      return new Call(new Name("int"),  [arg]);
+    }else if(tok.type == "KEYWORD" && tok.value == "float"){
+      next();
+      if(next().type !== "LPAREN") throw new Error("( mancante nell'float()");
+      const arg = parseEspressione();
+      if(next().type !== "RPAREN") throw new Error(") mancante nell'float()");
+      return new Call(new Name("float"),  [arg]);
+    }else if(tok.type == "KEYWORD" && tok.value == "str"){
+      next();
+      if(next().type !== "LPAREN") throw new Error("( mancante nell'str()");
+      const arg = parseEspressione();
+      if(next().type !== "RPAREN") throw new Error(") mancante nell'str()");
+      return new Call(new Name("str"),  [arg]);
     }
+
 
     throw new Error(tok.type +  " espressione non valida " + tokens[pos-3].value + " " + pos);
   }
@@ -235,25 +306,7 @@ export function parser(tokens) {
       else if (tok.value == "if") {
         next();
         if (next().type != "LPAREN") throw new Error("( mancante dopo l'if");
-
-        let left = parseEspressione();
-        let eq = next();
-        let op = null;
-
-        if (peek().type == "EQUALS") {
-          if (eq.type === "EQUALS") op = "==";
-          else if (eq.type === "NOT") op = "!=";
-          else if (eq.type === "MINOR") op = "<=";
-          else if (eq.type === "MORE") op = ">=";
-          else throw new Error("operatore mancante nell'if");
-          next();
-        } else {
-          if (eq.type == "MINOR") op = "<";
-          else if (eq.type == "MORE") op = ">";
-          else throw new Error("operatore mancante nell'if");
-        }
-
-        let right = parseEspressione();
+        let cond = parseLogica();
         if (next().type != "RPAREN") throw new Error(") mancante nell if");
         if (next().type != "COLON") throw new Error(": mancante nell if");
 
@@ -282,11 +335,19 @@ export function parser(tokens) {
         skipNewLine();
         if (peek() && peek().type === "INDENTENTION") {
           readIndent(); // consumo temporaneo
-          if (!(peek() && peek().type === "KEYWORD" && peek().value == "else")) {
+          if (!(peek() && peek().type === "KEYWORD" && (peek().value === "else" || peek().value === "elif"))) {
             pos--; // nessun else → rimetto il token INDENTENTION
           }
         }
         let elsebody = null;
+
+        if (peek() && peek().type === "KEYWORD" && peek().value === "elif") {
+          // lo trattiamo come un if annidato dentro elseBody
+          // basta ricorrere a parseStatement che gestirà l'"if"
+          // ma elif non è "if", quindi lo rinominiamo al volo:
+          tokens[pos] = { type: "KEYWORD", value: "if" }; // patch del token
+          elsebody = [parseStatement()]; // ritorna un If annidato
+        }
 
         if (peek() && peek().type === "KEYWORD" && peek().value == "else") {
           elsebody = [];
@@ -315,7 +376,7 @@ export function parser(tokens) {
         }
 
         return new If(
-          new Binary(op, left, right),
+          cond,
           body,
           elsebody
         );
@@ -332,7 +393,7 @@ export function parser(tokens) {
         if (intok.value != "in") throw new Error("manca in nel for");
 
         const rangeTok = next();
-        if (rangeTok.type != "KEYWORD" && rangeTok.value != "range") throw new Error("manca range nel for");
+        if (rangeTok.type != "KEYWORD" || rangeTok.value != "range") throw new Error("manca range nel for");
 
         const lpar = next();
         if (lpar.type != "LPAREN") throw new Error("manca ( dopo range");
@@ -381,29 +442,13 @@ export function parser(tokens) {
           body
         );
       }
+      // ---- while
       else if(tok.value == "while"){
         next();//saltiamo la parola while
         const lPar = next();
         if(lPar.type != "LPAREN") throw new Error("( mancante nel while")
 
-        const left = parseEspressione();
-        let eq = next();
-        let op = null;
-
-        if (peek().type == "EQUALS") {
-          if (eq.type === "EQUALS") op = "==";
-          else if (eq.type === "NOT") op = "!=";
-          else if (eq.type === "MINOR") op = "<=";
-          else if (eq.type === "MORE") op = ">=";
-          else throw new Error("operatore mancante nell'if");
-          next();
-        } else {
-          if (eq.type == "MINOR") op = "<";
-          else if (eq.type == "MORE") op = ">";
-          else throw new Error("operatore mancante nell'if");
-        }
-
-        let right = parseEspressione();
+        let cond = parseLogica();
 
         const rPar = next();
         if(rPar.type != "RPAREN") throw new Error(") mancante nel while");
@@ -437,7 +482,7 @@ export function parser(tokens) {
         indentStack.pop();
 
         return new While(
-         new Binary(op, left, right),
+          cond,
           body
         );
       }else if(tok.value == "def"){
@@ -520,7 +565,7 @@ export function parser(tokens) {
       if(nextTok.type == "DOT"){
         return new Exp(parseAtom());
       }else if(nextTok.type == "LPAREN") {
-        return parseAtom(); // parseAtom gestisce le call
+        return new Exp(parseAtom()); // parseAtom gestisce le call
       } else if (CreatedVariable.has(tok.value)) {
         next();
         let index;

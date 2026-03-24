@@ -32,12 +32,15 @@ export function jsComposer(node) {
       SLASH: "/",
       PERCENT: "%",
 
-      "==": "==",
-      "!=": "!=",
+      "==": "===",
+      "!=": "!==",
       "<": "<",
       "<=": "<=",
       ">": ">",
-      ">=": ">="
+      ">=": ">=",
+
+      "and": "&&",
+      "or": "||"
     }[op] || op;
   }
 
@@ -58,8 +61,16 @@ export function jsComposer(node) {
   }
 
   if(node instanceof Program){
-      return node.body.map(jsComposer).join("\n");
-  }else if(node instanceof Assign)
+  const helper = `
+  function __add__(a, b) {
+    if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
+    if (Array.isArray(a)) return [...a, b];
+    if (Array.isArray(b)) return [a, ...b];
+    return a + b;
+  }
+  `.trim();
+  return helper + "\n" + node.body.map(jsComposer).join("\n");
+}else if(node instanceof Assign)
   {
       return `let ${jsComposer(node.target)} = ${jsComposer(node.value)};`;
   }
@@ -106,7 +117,12 @@ export function jsComposer(node) {
   }
   else if(node instanceof Binary)
   {
-      return `${jsComposer(node.left)} ${opToJs(node.op)} ${jsComposer(node.right)}`;
+    if (node.op === "PLUS") {
+      return `__add__(${jsComposer(node.left)}, ${jsComposer(node.right)})`;
+    }
+    //if(node.op === "or" || node.op === "and") return `(${jsComposer(node.left)} ${opToJs(node.op)} ${jsComposer(node.right)})`;
+    
+    return `(${jsComposer(node.left)} ${opToJs(node.op)} ${jsComposer(node.right)})`;
   }
   else if(node instanceof If){
     let code = `if (${jsComposer(node.condition)}) {\n`;
@@ -157,7 +173,15 @@ export function jsComposer(node) {
     return code;
   }
   else if(node instanceof Call){
-    return `await ${jsComposer(node.callee)}(${node.args.map(jsComposer).join(", ")})`;
+    const name = jsComposer(node.callee);
+    const args= node.args.map(jsComposer).join(", ")
+
+    // built-in che non sono async
+    if(name === "int")   return `parseInt(${args})`;
+    if(name === "float") return `parseFloat(${args})`;
+    if(name === "str")   return `String(${args})`;
+
+    return `await ${name}(${args})`;
   }
   else if(node instanceof Return)
   {
